@@ -1,22 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Anchor, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Anchor, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, User, Phone, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 export const Login: React.FC = () => {
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [selectedRole, setSelectedRole] = useState('SHIPPING_AGENT');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
     try {
       const res = await api.post('/auth/login', { email, password });
       if (res.data.success) {
@@ -35,7 +42,47 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      // 1. Register new user directly into the database
+      const regRes = await api.post('/auth/register', {
+        fullName,
+        email,
+        password,
+        phone,
+        roles: [selectedRole]
+      });
+
+      if (regRes.data.success) {
+        setSuccessMsg('Account registered and saved to database! Logging you in...');
+        
+        // 2. Automatically log in with the new credentials
+        const loginRes = await api.post('/auth/login', { email, password });
+        if (loginRes.data.success) {
+          const { token, ...userData } = loginRes.data.data;
+          login(token, userData);
+          setTimeout(() => navigate('/dashboard'), 800);
+        } else {
+          setIsRegister(false);
+        }
+      } else {
+        setError(regRes.data.message || 'Registration failed');
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || 'Registration failed. Email might already exist in database.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const setDemoAccount = (demoEmail: string) => {
+    setIsRegister(false);
     setEmail(demoEmail);
     setPassword('Demo@12345');
   };
@@ -60,6 +107,32 @@ export const Login: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-slate-800/80 backdrop-blur-md border border-slate-700/80 py-8 px-6 shadow-2xl rounded-2xl sm:px-10">
+          {/* Tab Navigation */}
+          <div className="flex border-b border-slate-700 mb-6">
+            <button
+              type="button"
+              onClick={() => { setIsRegister(false); setError(null); }}
+              className={`flex-1 pb-3 text-xs font-semibold text-center border-b-2 transition-colors ${
+                !isRegister
+                  ? 'border-portblue-400 text-portblue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsRegister(true); setError(null); }}
+              className={`flex-1 pb-3 text-xs font-semibold text-center border-b-2 transition-colors ${
+                isRegister
+                  ? 'border-portblue-400 text-portblue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Register New User (Store in DB)
+            </button>
+          </div>
+
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -67,63 +140,177 @@ export const Login: React.FC = () => {
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@portwise.demo"
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
-                />
-              </div>
+          {successMsg && (
+            <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
-                />
+          {!isRegister ? (
+            /* --- SIGN IN FORM --- */
+            <form className="space-y-4" onSubmit={handleLoginSubmit}>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="user@portwise.demo or your email"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                  />
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-2 flex items-center justify-center py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-portblue-500 hover:bg-portblue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-portblue-500 shadow-lg shadow-portblue-500/25 transition-all disabled:opacity-50"
-            >
-              {loading ? (
-                'Authenticating...'
-              ) : (
-                <>
-                  Sign in to Terminal
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                  />
+                </div>
+              </div>
 
-          {/* Demo account quick buttons */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 flex items-center justify-center py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-portblue-500 hover:bg-portblue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-portblue-500 shadow-lg shadow-portblue-500/25 transition-all disabled:opacity-50"
+              >
+                {loading ? (
+                  'Authenticating...'
+                ) : (
+                  <>
+                    Sign In to Terminal
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            /* --- REGISTER NEW USER FORM (Saves to DB) --- */
+            <form className="space-y-3.5" onSubmit={handleRegisterSubmit}>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    minLength={2}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Captain John Doe"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Email ID (Stored in DB)
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="myname@company.com"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Password (Encrypted in DB)
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Phone (Optional)
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Assigned Role
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-900/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-portblue-400 focus:border-portblue-400"
+                >
+                  <option value="ADMIN">ADMIN (Full System Access)</option>
+                  <option value="PORT_AUTHORITY">PORT_AUTHORITY (Berth & Approvals)</option>
+                  <option value="SHIPPING_AGENT">SHIPPING_AGENT (Vessel Schedules)</option>
+                  <option value="CARGO_OWNER">CARGO_OWNER (Cargo Declarations)</option>
+                  <option value="LOGISTICS_OPERATOR">LOGISTICS_OPERATOR (Equipment & Cranes)</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-3 flex items-center justify-center py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-tealbrand-500 hover:bg-tealbrand-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tealbrand-500 shadow-lg shadow-tealbrand-500/25 transition-all disabled:opacity-50"
+              >
+                {loading ? (
+                  'Saving to Database...'
+                ) : (
+                  <>
+                    Save to Database & Sign In
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* Demo account quick buttons (Always preserved for convenience) */}
           <div className="mt-6 pt-5 border-t border-slate-700/80">
             <div className="flex items-center space-x-1.5 mb-3">
               <ShieldCheck className="w-3.5 h-3.5 text-tealbrand-400" />
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Select Demo Role Account (Password: Demo@12345)
+                Or Quick-Fill Pre-Seeded Demo Role:
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
