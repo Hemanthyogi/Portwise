@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: portwise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-portwise_db}
+      POSTGRES_USER: ${POSTGRES_USER:-portwise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portwise_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - portwise-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portwise} -d ${POSTGRES_DB:-portwise_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: portwise-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-portwise_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-portwise}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-portwise_secret}
+      JWT_SECRET: ${JWT_SECRET:-portwise_dev_secret_key_at_least_64_chars_long_please_change_this}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:80
+    ports:
+      - "8080:8080"
+    networks:
+      - portwise-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: portwise-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - portwise-network
+
+networks:
+  portwise-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

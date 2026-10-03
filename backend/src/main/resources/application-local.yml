@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/portwisedb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+  flyway:
+    enabled: false
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    secret: portwise_dev_secret_key_at_least_64_chars_long_please_change_this_default_jwt_secret_value
+    expiration-ms: 86400000
+  demo-mode: true
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.portwise: INFO
+    org.springframework.security: INFO

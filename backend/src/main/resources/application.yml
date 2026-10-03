@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: portwise-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/portwise_db}
+    username: ${SPRING_DATASOURCE_USERNAME:portwise}
+    password: ${SPRING_DATASOURCE_PASSWORD:portwise_secret}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:portwise_dev_secret_key_at_least_64_chars_long_please_change_this}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  demo-mode: ${DEMO_MODE:true}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+logging:
+  level:
+    com.portwise: DEBUG
+    org.springframework.security: INFO
